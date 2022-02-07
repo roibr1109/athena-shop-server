@@ -7,12 +7,3 @@ export interface User {
     buyingHistory: string[]
 };
 
-export default gql`
-    type User  {
-        id: ID!
-        role: String
-        username: string
-        password: string
-        buyingHistory: string[]
-}
-`;
