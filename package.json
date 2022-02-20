@@ -8,6 +8,7 @@
     "@graphql-tools/stitch": "^8.3.0-alpha-f2401929.0",
     "@types/lodash": "^4.14.172",
     "apollo-server-express": "^2.21.2",
+    "cors": "^2.8.5",
     "express": "^4.17.1",
     "graphql": "^14.0.2",
     "graphql-iso-date": "^3.6.1",
