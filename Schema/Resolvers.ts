@@ -54,9 +54,9 @@ export const resolvers = {
     },
 
     Mutation: {
-        createUser(parent, arg): UserToReturn {
-            console.log("eneterd");
-            const newUser: User = {id: getId(), ...arg, buyingHistory: [], role: "user"};
+        createUser(parent, args): UserToReturn {
+            logger.info("creating user with this param " + args)
+            const newUser: User = {id: getId(), ...args, buyingHistory: [], role: "user"};
             usersMock.push(newUser);
             return (getClientUser(newUser));
         },
@@ -90,7 +90,6 @@ export const resolvers = {
         buyShoeItem(parent, arg): ShoeItem {
             const foundIndex = shoeItems.findIndex( (shoe) => shoe.id === arg.shoeId );
             shoeItems[foundIndex].datePurchased = arg.datePurchased;
-            console.log(shoeItems[foundIndex])
             return shoeItems[foundIndex];
         },
 
@@ -103,7 +102,6 @@ export const resolvers = {
             shoeItems[foundIndex].userRating = arg.rating;
             const basicShoe = shoeItems[foundIndex].basicShoe;
             const avgSum = basicShoe.rank * basicShoe.numberOfRates + arg.rating
-            console.log(avgSum);
             shoeItems[foundIndex].basicShoe.numberOfRates++;;
             shoeItems[foundIndex].basicShoe.rank = avgSum / shoeItems[foundIndex].basicShoe.numberOfRates;
             
