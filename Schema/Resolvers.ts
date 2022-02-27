@@ -63,13 +63,9 @@ export const resolvers = {
 
         createShoeItem(parent, arg): ShoeItem {
             const newShoeItem = {
+                ...arg.shoeItem,
                 id: uuidv4(),
-                size: arg.shoeItem.size,
-                dateCreated: arg.shoeItem.dateCreated,
-                basicShoe: arg.shoeItem.basicShoe,
-                datePurchased: arg.shoeItem.datePurchased,
-                userRating: arg.shoeItem.userRating
-            };
+            }
 
             shoeItems.push(newShoeItem);
             return newShoeItem;

@@ -81,9 +81,9 @@ export const typeDefs = gql`
 
         updateUser(userToUpdate: UserInput!): User!
         
-        buyShoeItem(shoeId: ID, datePurchased: Date): ShoeItem!
+        buyShoeItem(shoeId: ID!, datePurchased: Date!): ShoeItem!
 
-        rateShoeItem(shoeId: ID, rating: Float): ShoeItem!
+        rateShoeItem(shoeId: ID!, rating: Float!): ShoeItem!
 
         createUser(username: String!, password: String!): User!
 
