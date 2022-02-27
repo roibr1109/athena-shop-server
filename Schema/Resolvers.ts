@@ -1,86 +1,110 @@
-import { User } from "../interfaces/User";
+import { User, UserToReturn } from "../interfaces/User";
 import { BASICSHOE } from "../mocks/basicShoeMocks";
 import { shoeItems } from "../mocks/shoeItemMocks";
-import { users } from "../mocks/usersMock";
+import { usersMock } from "../mocks/usersMock";
+import { v4 as uuidv4 } from 'uuid';
+import { BasicShoe } from "../interfaces/BasicShoe";
+import { ShoeItem } from "../interfaces/ShoeItem";
+import { UserInputError } from "apollo-server-errors";
+import { getClientUser, getId, getMaxValue } from "../functions";
+import { createLogger, LoggerConfiguration, LoggerLevel, PolarisLogger } from '@enigmatis/polaris-logs';
+
+const logConf: LoggerConfiguration = {
+    loggerLevel: LoggerLevel.TRACE,
+    writeToConsole: true
+}
+const logger: PolarisLogger = new PolarisLogger(logConf);
 
 export const resolvers = {
     Query: { 
-        getAllBasicShoe() {
+        getAllBasicShoe(): BasicShoe[] {
             return BASICSHOE;
         },
 
-        getAllShoeItems() {
+        getAllShoeItems(): ShoeItem[] {
             return shoeItems;
         },
 
-        signIn(parent, arg) {
-            console.log(arg);
-            return users.find(user => user.password === arg.password && user.username === arg.username);
+        signIn(parent, args): UserToReturn {
+            const userToReturn =  usersMock.find(user => user.password === args.password && user.username === args.username);
+            logger.info("try to login with this details username: " + args.username + " password: " + args.password );
+
+            if (!userToReturn) {
+                throw new  UserInputError("invalid username or password");
+            }
+            
+            return getClientUser(userToReturn); 
         },
         
-        getMostPopularBrand(parent, arg) {
+        getMostPopularBrand(parent, arg): string {
             let popularityHashMap = new Map();
     
             for ( let itemIndex = 0; itemIndex < arg.buyingHistoryItems.length; itemIndex++) {
-              if (popularityHashMap.has(arg.buyingHistoryItems[itemIndex].basicShoe.brands[0])) {
-                popularityHashMap.set(arg.buyingHistoryItems[itemIndex].basicShoe.brands[0], popularityHashMap
-                    .get(arg.buyingHistoryItems[itemIndex].basicShoe.brands[0]) + 1);
+                const brand = arg.buyingHistoryItems[itemIndex].basicShoe.brands[0]
+              if (popularityHashMap.has(brand)) {
+                popularityHashMap.set(brand, popularityHashMap.get(brand) + 1);
               } else {
-                popularityHashMap.set(arg.buyingHistoryItems[itemIndex].basicShoe.brands[0], 1);
+                popularityHashMap.set(brand, 1);
               } 
             }
             
-            let maxCount = 0, result;
-            popularityHashMap.forEach((value, key) => {
-              if (maxCount < value) {
-                result = key;
-                maxCount = value;
-              }
-            });
-        
-            return result;
+            
+            return getMaxValue(popularityHashMap);
         }
     },
 
     Mutation: {
-        createUser(parent, arg) {
-            const newUser:User = {id: getId(), username: arg.username, password: arg.password, buyingHistory: [], role: "user"};
-            users.push(newUser);
-            return newUser;
+        createUser(parent, arg): UserToReturn {
+            console.log("eneterd");
+            const newUser: User = {id: getId(), ...arg, buyingHistory: [], role: "user"};
+            usersMock.push(newUser);
+            return (getClientUser(newUser));
         },
 
-        createShoeItem(parent, arg) {
-            const newShoeItem = {id: "dsa",
-             size: arg.shoeItem.size,
-             dateCreated: arg.shoeItem.dateCreated,
-             basicShoe: arg.shoeItem.basicShoe,
-             datePurchased: arg.shoeItem.datePurchased,
-             userRating: arg.shoeItem.userRating
+        createShoeItem(parent, arg): ShoeItem {
+            const newShoeItem = {
+                id: uuidv4(),
+                size: arg.shoeItem.size,
+                dateCreated: arg.shoeItem.dateCreated,
+                basicShoe: arg.shoeItem.basicShoe,
+                datePurchased: arg.shoeItem.datePurchased,
+                userRating: arg.shoeItem.userRating
             };
 
             shoeItems.push(newShoeItem);
             return newShoeItem;
         },
         
-        updateUser(parent, arg) {
+        updateUser(parent, arg): UserToReturn {
             arg.userToUpdate.id = parseInt(arg.userToUpdate.id);
-            const foundIndex = users.findIndex( (user) => user.id === arg.userToUpdate.id );
-            users[foundIndex] = arg.userToUpdate;
-            return users[foundIndex];
+            const foundIndex = usersMock.findIndex( (user) => user.id === arg.userToUpdate.id );
+
+            if( foundIndex === -1) {
+                throw new UserInputError("user not found");
+            }
+            usersMock[foundIndex] = arg.userToUpdate;
+            return getClientUser(usersMock[foundIndex]);
         },
 
-        buyShoeItem(parent, arg) {
+
+        buyShoeItem(parent, arg): ShoeItem {
             const foundIndex = shoeItems.findIndex( (shoe) => shoe.id === arg.shoeId );
             shoeItems[foundIndex].datePurchased = arg.datePurchased;
+            console.log(shoeItems[foundIndex])
             return shoeItems[foundIndex];
         },
 
-        rateShoeItem(parent, arg) {
+        rateShoeItem(parent, arg): ShoeItem {
             const foundIndex = shoeItems.findIndex( (shoe) => shoe.id === arg.shoeId );
+
+            if(foundIndex === -1) {
+                throw new Error("shoe item not found");
+            } 
             shoeItems[foundIndex].userRating = arg.rating;
             const basicShoe = shoeItems[foundIndex].basicShoe;
             const avgSum = basicShoe.rank * basicShoe.numberOfRates + arg.rating
-            shoeItems[foundIndex].basicShoe.numberOfRates += 1;
+            console.log(avgSum);
+            shoeItems[foundIndex].basicShoe.numberOfRates++;;
             shoeItems[foundIndex].basicShoe.rank = avgSum / shoeItems[foundIndex].basicShoe.numberOfRates;
             
             return shoeItems[foundIndex];
@@ -88,8 +112,4 @@ export const resolvers = {
         
     }
 };
-
-function getId(): number {
-    return users[users.length-1].id+1;
-}
 

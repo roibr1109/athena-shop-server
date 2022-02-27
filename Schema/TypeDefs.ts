@@ -5,8 +5,7 @@ export const typeDefs = gql`
 
     type User {
         id: ID!
-        username: String!
-        password: String!
+        username: String!   
         buyingHistory: [String!]!
         role: String!
     }
@@ -14,7 +13,6 @@ export const typeDefs = gql`
     input UserInput {
         id: ID!
         username: String!
-        password: String!
         buyingHistory: [String!]!
         role: String!
     }
@@ -34,7 +32,7 @@ export const typeDefs = gql`
         model: String!
         price: Int! 
         rank: Float
-        numberOfRates: Float!
+        numberOfRates: Int!
     }
 
     type ShoeItem {
@@ -72,7 +70,7 @@ export const typeDefs = gql`
         
         signIn(username: String!, password: String!): User
 
-        getAllBasicShoe: [BasicShoe]
+        getAllBasicShoe: [BasicShoe!]
     }
 
     # Mutations
@@ -85,7 +83,7 @@ export const typeDefs = gql`
         
         buyShoeItem(shoeId: ID, datePurchased: Date): ShoeItem!
 
-        rateShoeItem(shoeId: ID, rating: Int): ShoeItem!
+        rateShoeItem(shoeId: ID, rating: Float): ShoeItem!
 
         createUser(username: String!, password: String!): User!
 

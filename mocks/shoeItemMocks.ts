@@ -1,7 +1,8 @@
+import { ShoeItem } from "../interfaces/ShoeItem";
 import { BASICSHOE } from "./basicShoeMocks";
 
 
-export let shoeItems = [ {id: "firstItem",
+export let shoeItems: ShoeItem[] = [ {id: "firstItem",
 size: 5,
 dateCreated: new Date("2/01/22"),
 datePurchased: null,
