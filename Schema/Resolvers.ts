@@ -16,6 +16,7 @@ const logConf: LoggerConfiguration = {
 const logger: PolarisLogger = new PolarisLogger(logConf);
 
 export const resolvers = {
+
     Query: { 
         getAllBasicShoe(): BasicShoe[] {
             return BASICSHOE;
@@ -78,7 +79,7 @@ export const resolvers = {
             if( foundIndex === -1) {
                 throw new UserInputError("user not found");
             }
-            usersMock[foundIndex] = arg.userToUpdate;
+            usersMock[foundIndex] = {password: usersMock[foundIndex].password, ...arg.userToUpdate};
             return getClientUser(usersMock[foundIndex]);
         },
 

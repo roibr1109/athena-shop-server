@@ -64,7 +64,7 @@ export const typeDefs = gql`
     # Queries
     type Query {
 
-        getMostPopularBrand(buyingHistoryItems: [InputShoeItemWithAllParam]): String!
+        getMostPopularBrand(buyingHistoryItems: [InputShoeItemWithAllParam]): String
 
         getAllShoeItems: [ShoeItem!]!
         
