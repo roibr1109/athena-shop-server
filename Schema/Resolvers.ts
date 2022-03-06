@@ -1,5 +1,4 @@
 import { User, UserToReturn } from "../interfaces/User";
-import { BASICSHOE } from "../mocks/basicShoeMocks";
 import { shoeItems } from "../mocks/shoeItemMocks";
 import { usersMock } from "../mocks/usersMock";
 import { v4 as uuidv4 } from 'uuid';
@@ -7,8 +6,11 @@ import { BasicShoe } from "../interfaces/BasicShoe";
 import { ShoeItem } from "../interfaces/ShoeItem";
 import { UserInputError } from "apollo-server-errors";
 import { getClientUser, getId, getMaxValue } from "../functions";
-import { createLogger, LoggerConfiguration, LoggerLevel, PolarisLogger } from '@enigmatis/polaris-logs';
-
+import { LoggerConfiguration, LoggerLevel, PolarisLogger } from '@enigmatis/polaris-logs';
+import { request } from "graphql-request";
+import { url } from "..";
+import { BUY_SHOE, CREATE_SHOE_ITEM, GET_BASIC_SHOE, GET_BASIC_SHOES, GET_SHOES_ITEMS, UPDATE_RATE, UPDATE_USER_RATE } from "../queries/shoesQueries";
+import { SIGN_IN, SIGN_UP, UPDATE_USER } from "../queries/userQueries";
 const logConf: LoggerConfiguration = {
     loggerLevel: LoggerLevel.TRACE,
     writeToConsole: true
@@ -18,23 +20,28 @@ const logger: PolarisLogger = new PolarisLogger(logConf);
 export const resolvers = {
 
     Query: { 
-        getAllBasicShoe(): BasicShoe[] {
-            return BASICSHOE;
+         async getAllBasicShoe(): Promise<BasicShoe[]> {
+            return await request(url, GET_BASIC_SHOES).then(data => {
+                return data.roi_basicShoe;
+              });
+         },
+
+        async getAllShoeItems(): Promise<ShoeItem[]> {
+            return await request(url, GET_SHOES_ITEMS).then(data => {
+                return data.roi_shoeItem;
+              });
         },
 
-        getAllShoeItems(): ShoeItem[] {
-            return shoeItems;
-        },
-
-        signIn(parent, args): UserToReturn {
-            const userToReturn =  usersMock.find(user => user.password === args.password && user.username === args.username);
+        async signIn(parent, args): Promise<UserToReturn> {
             logger.info("try to login with this details username: " + args.username + " password: " + args.password );
 
-            if (!userToReturn) {
-                throw new  UserInputError("invalid username or password");
-            }
-            
-            return getClientUser(userToReturn); 
+            return await request(url, SIGN_IN, {username: args.username,
+                password: args.password}).then(data => {
+                    if (!data.roi_user[0]) {
+                        throw new  UserInputError("invalid username or password");
+                    }
+
+                    return data.roi_user[0]});
         },
         
         getMostPopularBrand(parent, arg): string {
@@ -55,54 +62,62 @@ export const resolvers = {
     },
 
     Mutation: {
-        createUser(parent, args): UserToReturn {
+        async createUser(parent, args): Promise<UserToReturn> {
             logger.info("creating user with this param " + args)
-            const newUser: User = {id: getId(), ...args, buyingHistory: [], role: "user"};
-            usersMock.push(newUser);
-            return (getClientUser(newUser));
+            const newUser: User = {id: uuidv4(), ...args, buyingHistory: [], role: "user"};
+
+            return await request(url, SIGN_UP, {user: newUser}).then(data => data.insert_roi_user_one)
         },
 
-        createShoeItem(parent, arg): ShoeItem {
+        async createShoeItem(parent, arg): Promise<ShoeItem> {
             const newShoeItem = {
                 ...arg.shoeItem,
                 id: uuidv4(),
             }
 
-            shoeItems.push(newShoeItem);
-            return newShoeItem;
+            return await request(url, CREATE_SHOE_ITEM, {shoeItem: newShoeItem}).then(data => 
+             data.insert_roi_shoeItem_one
+            )
+            
         },
         
-        updateUser(parent, arg): UserToReturn {
-            arg.userToUpdate.id = parseInt(arg.userToUpdate.id);
-            const foundIndex = usersMock.findIndex( (user) => user.id === arg.userToUpdate.id );
+        async updateUser(parent, arg): Promise<UserToReturn> {
+            return await request(url, UPDATE_USER, {id: arg.userId, shoeId: arg.itemId}).then(data => {
+                if( !data.update_roi_user_by_pk ) {
+                    throw new UserInputError("user not found");
+                }
 
-            if( foundIndex === -1) {
-                throw new UserInputError("user not found");
+                return data.update_roi_user_by_pk
             }
-            usersMock[foundIndex] = {password: usersMock[foundIndex].password, ...arg.userToUpdate};
-            return getClientUser(usersMock[foundIndex]);
+        )
+
         },
 
 
-        buyShoeItem(parent, arg): ShoeItem {
-            const foundIndex = shoeItems.findIndex( (shoe) => shoe.id === arg.shoeId );
-            shoeItems[foundIndex].datePurchased = arg.datePurchased;
-            return shoeItems[foundIndex];
+        async buyShoeItem(parent, arg): Promise<ShoeItem> {
+            return await request(url, BUY_SHOE, {shoeId: arg.shoeId, date: arg.datePurchased})
+            .then(data => {
+                return data.update_roi_shoeItem_by_pk
+            })
         },
 
-        rateShoeItem(parent, arg): ShoeItem {
-            const foundIndex = shoeItems.findIndex( (shoe) => shoe.id === arg.shoeId );
-
-            if(foundIndex === -1) {
+        async rateShoeItem(parent, arg): Promise<ShoeItem> {
+            const basicShoe: BasicShoe = await request(url, GET_BASIC_SHOE,{ basicShoeId: arg.basicShoeId}).then(data =>
+                data.roi_basicShoe_by_pk);
+                
+            if(!basicShoe) {
                 throw new Error("shoe item not found");
+
             } 
-            shoeItems[foundIndex].userRating = arg.rating;
-            const basicShoe = shoeItems[foundIndex].basicShoe;
-            const avgSum = basicShoe.rank * basicShoe.numberOfRates + arg.rating
-            shoeItems[foundIndex].basicShoe.numberOfRates++;;
-            shoeItems[foundIndex].basicShoe.rank = avgSum / shoeItems[foundIndex].basicShoe.numberOfRates;
+        
+            const avgSum = basicShoe.rank * basicShoe.numberOfRates + arg.rating;
+            const newRank = avgSum / (basicShoe.numberOfRates + 1);
             
-            return shoeItems[foundIndex];
+            await request(url, UPDATE_RATE, {id: arg.basicShoeId, newRank: newRank});
+            
+            return request(url, UPDATE_USER_RATE, {id: arg.shoeId, newRank: arg.rating}).then(data => {
+                return data.update_roi_shoeItem_by_pk;
+            });
         }
         
     }

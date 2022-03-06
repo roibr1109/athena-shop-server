@@ -6,7 +6,7 @@ export const typeDefs = gql`
     type User {
         id: ID!
         username: String!   
-        buyingHistory: [String!]!
+        buyingHistory: [String!]
         role: String!
     }
 
@@ -49,7 +49,7 @@ export const typeDefs = gql`
         dateCreated: Date
         datePurchased: Date
         userRating: Float
-        basicShoe: InputBasicShoe
+        basicShoeId: ID
     } 
 
     input InputShoeItemWithAllParam{
@@ -79,11 +79,11 @@ export const typeDefs = gql`
 
     type Mutation {
 
-        updateUser(userToUpdate: UserInput!): User!
+        updateUser(userId: ID!, itemId: ID!): User!
         
         buyShoeItem(shoeId: ID!, datePurchased: Date!): ShoeItem!
 
-        rateShoeItem(shoeId: ID!, rating: Float!): ShoeItem!
+        rateShoeItem(shoeId: ID!,basicShoeId: ID!, rating: Float!): ShoeItem!
 
         createUser(username: String!, password: String!): User!
 
