@@ -1,7 +1,7 @@
 import { gql } from "graphql-request";
 
 export const GET_BASIC_SHOES = gql`
-    query {
+    query getBasicShoes {
         roi_basicShoe {
             id
             brands
@@ -13,7 +13,7 @@ export const GET_BASIC_SHOES = gql`
     }`;
 
 export const GET_SHOES_ITEMS = gql`
-    query {
+    query getShoeItems {
         roi_shoeItem {
             id
             size
