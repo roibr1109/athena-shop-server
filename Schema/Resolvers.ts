@@ -1,11 +1,9 @@
 import { User, UserToReturn } from "../interfaces/User";
-import { shoeItems } from "../mocks/shoeItemMocks";
-import { usersMock } from "../mocks/usersMock";
 import { v4 as uuidv4 } from 'uuid';
 import { BasicShoe } from "../interfaces/BasicShoe";
 import { ShoeItem } from "../interfaces/ShoeItem";
 import { UserInputError } from "apollo-server-errors";
-import { getClientUser, getId, getMaxValue } from "../functions";
+import { getMaxValue } from "../utils";
 import { LoggerConfiguration, LoggerLevel, PolarisLogger } from '@enigmatis/polaris-logs';
 import { request } from "graphql-request";
 import { url } from "..";
@@ -46,16 +44,15 @@ export const resolvers = {
         
         getMostPopularBrand(parent, arg): string {
             let popularityHashMap = new Map();
-    
-            for ( let itemIndex = 0; itemIndex < arg.buyingHistoryItems.length; itemIndex++) {
-                const brand = arg.buyingHistoryItems[itemIndex].basicShoe.brands[0]
-              if (popularityHashMap.has(brand)) {
-                popularityHashMap.set(brand, popularityHashMap.get(brand) + 1);
-              } else {
-                popularityHashMap.set(brand, 1);
-              } 
-            }
             
+            arg.buyingHistoryItems.forEach(item => {
+                const brand = item.basicShoe.brands[0];
+                if (popularityHashMap.has(brand)) {
+                    popularityHashMap.set(brand, popularityHashMap.get(brand) + 1);
+                } else {
+                    popularityHashMap.set(brand, 1);
+                } 
+            });
             
             return getMaxValue(popularityHashMap);
         }
@@ -104,7 +101,7 @@ export const resolvers = {
         async rateShoeItem(parent, arg): Promise<ShoeItem> {
             const basicShoe: BasicShoe = await request(url, GET_BASIC_SHOE,{ basicShoeId: arg.basicShoeId}).then(data =>
                 data.roi_basicShoe_by_pk);
-                
+
             if(!basicShoe) {
                 throw new Error("shoe item not found");
 

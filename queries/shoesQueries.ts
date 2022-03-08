@@ -93,12 +93,12 @@ export const UPDATE_USER_RATE = gql`
     mutation rateShoeItem($id: String!, $newRank: float8!) {
         update_roi_shoeItem_by_pk(pk_columns: {id: $id}, _set: {userRating: $newRank}) {
             basicShoe {
-            brands
-            id
-            model
-            numberOfRates
-            price
-            rank
+                brands
+                id
+                model
+                numberOfRates
+                price
+                rank
             }
             dateCreated
             basicShoeId
@@ -108,5 +108,5 @@ export const UPDATE_USER_RATE = gql`
             userRating
         }
     }`;
-    
+
 
