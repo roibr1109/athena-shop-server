@@ -79,9 +79,9 @@ export const typeDefs = gql`
 
     type Mutation {
 
-        updateUser(userId: ID!, itemId: ID!): User!
+        updateUser(userId: ID!, buyingHistory: [ID!]): User!
         
-        buyShoeItem(shoeId: ID!, datePurchased: Date!): ShoeItem!
+        buyShoeItems(shoeIds: [ID!]!, datePurchased: Date!): [ShoeItem!]
 
         rateShoeItem(shoeId: ID!,basicShoeId: ID!, rating: Float!): ShoeItem!
 

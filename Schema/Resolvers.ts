@@ -2,121 +2,128 @@ import { User, UserToReturn } from "../interfaces/User";
 import { v4 as uuidv4 } from 'uuid';
 import { BasicShoe } from "../interfaces/BasicShoe";
 import { ShoeItem } from "../interfaces/ShoeItem";
-import { UserInputError } from "apollo-server-errors";
 import { getMaxValue } from "../utils";
-import { LoggerConfiguration, LoggerLevel, PolarisLogger } from '@enigmatis/polaris-logs';
-import { request } from "graphql-request";
-import { url } from "..";
-import { BUY_SHOE, CREATE_SHOE_ITEM, GET_BASIC_SHOE, GET_BASIC_SHOES, GET_SHOES_ITEMS, UPDATE_RATE, UPDATE_USER_RATE } from "../queries/shoesQueries";
+import { BUY_SHOES, CREATE_SHOE_ITEM, GET_BASIC_SHOE, GET_BASIC_SHOES, GET_SHOES_ITEMS, UPDATE_RATE, UPDATE_USER_RATE } from "../queries/shoesQueries";
 import { SIGN_IN, SIGN_UP, UPDATE_USER } from "../queries/userQueries";
-const logConf: LoggerConfiguration = {
-    loggerLevel: LoggerLevel.TRACE,
-    writeToConsole: true
-}
-const logger: PolarisLogger = new PolarisLogger(logConf);
+import apollo from "../graphql.module";
+import {UserInputError} from "apollo-server-express";
 
 export const resolvers = {
 
-    Query: { 
+    Query: {
          async getAllBasicShoe(): Promise<BasicShoe[]> {
-            return await request(url, GET_BASIC_SHOES).then(data => {
-                return data.roi_basicShoe;
+            return await apollo.query({
+                query: GET_BASIC_SHOES
+            }).then(res => {
+                return res.data.athena_shop_basicShoe;
               });
          },
 
         async getAllShoeItems(): Promise<ShoeItem[]> {
-            return await request(url, GET_SHOES_ITEMS).then(data => {
-                return data.roi_shoeItem;
+            return await apollo.query({
+                query: GET_SHOES_ITEMS})
+                .then(res => {
+                return res.data.athena_shop_shoeItem;
               });
         },
 
-        async signIn(parent, args): Promise<UserToReturn> {
-            logger.info("try to login with this details username: " + args.username + " password: " + args.password );
+        async signIn(paren: any, args: any): Promise<UserToReturn> {
+            console.info("try to login with this details username: " + args.username + " password: " + args.password );
 
-            return await request(url, SIGN_IN, {username: args.username,
-                password: args.password}).then(data => {
-                    if (!data.roi_user[0]) {
+            return await apollo.query<any>({
+                query: SIGN_IN,
+                variables: {username: args.username,
+                password: args.password}}).then(res => {
+                    if (!res.data.athena_shop_user[0]) {
                         throw new  UserInputError("invalid username or password");
                     }
 
-                    return data.roi_user[0]});
+                    return res.data.athena_shop_user[0]});
         },
-        
-        getMostPopularBrand(parent, arg): string {
+
+        getMostPopularBrand(_, arg): string {
             let popularityHashMap = new Map();
-            
+
             arg.buyingHistoryItems.forEach(item => {
                 const brand = item.basicShoe.brands[0];
                 if (popularityHashMap.has(brand)) {
                     popularityHashMap.set(brand, popularityHashMap.get(brand) + 1);
                 } else {
                     popularityHashMap.set(brand, 1);
-                } 
+                }
             });
-            
+
             return getMaxValue(popularityHashMap);
         }
     },
 
     Mutation: {
-        async createUser(parent, args): Promise<UserToReturn> {
-            logger.info("creating user with this param " + args)
+        async createUser(_, args): Promise<UserToReturn> {
+            console.info("creating user with this param " + args)
             const newUser: User = {id: uuidv4(), ...args, buyingHistory: [], role: "user"};
 
-            return await request(url, SIGN_UP, {user: newUser}).then(data => data.insert_roi_user_one)
+            return await apollo.mutate<any>( {
+                mutation: SIGN_UP,
+                variables:{ user: newUser}
+            }).then(res => res.data?.insert_athena_shop_user_one)
         },
 
-        async createShoeItem(parent, arg): Promise<ShoeItem> {
+        async createShoeItem(_, arg): Promise<ShoeItem> {
             const newShoeItem = {
                 ...arg.shoeItem,
                 id: uuidv4(),
             }
 
-            return await request(url, CREATE_SHOE_ITEM, {shoeItem: newShoeItem}).then(data => 
-             data.insert_roi_shoeItem_one
+            return await apollo.mutate({mutation: CREATE_SHOE_ITEM,
+            variables: {shoeItem: newShoeItem}})
+                .then(res => res.data.insert_athena_shop_shoeItem_one
             )
-            
+
         },
-        
-        async updateUser(parent, arg): Promise<UserToReturn> {
-            return await request(url, UPDATE_USER, {id: arg.userId, shoeId: arg.itemId}).then(data => {
-                if( !data.update_roi_user_by_pk ) {
+
+        async updateUser(_, arg): Promise<UserToReturn> {
+            return await apollo.mutate({ mutation: UPDATE_USER,
+            variables: {id: arg.userId, buyingHistory: arg.buyingHistory}})
+                .then(res => {
+                    if( !res.data.update_athena_shop_user_by_pk ) {
                     throw new UserInputError("user not found");
                 }
 
-                return data.update_roi_user_by_pk
+                return res.data.update_athena_shop_user_by_pk
             }
-        )
-
-        },
+        )},
 
 
-        async buyShoeItem(parent, arg): Promise<ShoeItem> {
-            return await request(url, BUY_SHOE, {shoeId: arg.shoeId, date: arg.datePurchased})
-            .then(data => {
-                return data.update_roi_shoeItem_by_pk
+        async buyShoeItems(_, arg): Promise<ShoeItem[]> {
+            return await apollo.mutate({mutation: BUY_SHOES,
+            variables: {shoeIds: arg.shoeIds, date: arg.datePurchased}})
+            .then(res => {
+                return res.data.update_athena_shop_shoeItem_many[0].returning
             })
         },
 
-        async rateShoeItem(parent, arg): Promise<ShoeItem> {
-            const basicShoe: BasicShoe = await request(url, GET_BASIC_SHOE,{ basicShoeId: arg.basicShoeId}).then(data =>
-                data.roi_basicShoe_by_pk);
+        async rateShoeItem(_, arg): Promise<ShoeItem> {
+            const basicShoe: BasicShoe = await apollo.query({query: GET_BASIC_SHOE,
+                variables:{ basicShoeId: arg.basicShoeId}})
+                .then(res =>
+                res.data.athena_shop_basicShoe_by_pk);
 
             if(!basicShoe) {
                 throw new Error("shoe item not found");
 
-            } 
-        
+            }
+
             const avgSum = basicShoe.rank * basicShoe.numberOfRates + arg.rating;
             const newRank = avgSum / (basicShoe.numberOfRates + 1);
-            
-            await request(url, UPDATE_RATE, {id: arg.basicShoeId, newRank: newRank});
-            
-            return request(url, UPDATE_USER_RATE, {id: arg.shoeId, newRank: arg.rating}).then(data => {
-                return data.update_roi_shoeItem_by_pk;
+
+            await apollo.mutate({mutation: UPDATE_RATE,
+                variables: {id: arg.basicShoeId, newRank: newRank}});
+
+            return apollo.mutate({mutation: UPDATE_USER_RATE,
+            variables: {id: arg.shoeId, newRank: arg.rating}}).then(res => {
+                return res.data.update_athena_shop_shoeItem_by_pk;
             });
         }
-        
     }
 };
 
